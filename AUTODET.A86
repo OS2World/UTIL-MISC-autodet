@@ -1,0 +1,143 @@
+; finden von Parametern in der Umgebung des aufrufenden Programmes
+; Zweck: Bestimmung in der OS/2 Autoexec.Bat
+;        ob mit /C Name.Exe mit bergeben wurde um
+;        bedingte Ausfhrung zu erm”glichen
+;        
+; V.K. 13.07.1997
+;      30.12.1997 100/101 vertauscht
+;      11.03.1998 deencom
+
+; Ergebnisse
+fehler			equ  99
+nicht_gefunden		equ 100
+gefunden		equ 101
+
+
+psp_eltern_psp		equ 00016
+psp_commandcom_int24	equ 00014
+parameter_laenge	equ 00080
+parameter_string	equ 00081
+
+;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+			cmp b[parameter_laenge],1
+			jnle start
+
+			mov ah,009
+			mov dx,titel
+			int 021
+
+			jmp ende_fehler
+
+;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+start:
+			mov ax,[psp_eltern_psp]
+			cmp ax,0
+			jz ende_fehler
+			
+			mov es,ax
+			mov ax,es:[psp_commandcom_int24]
+			cmp ax,0
+			jz hole_parameter_commandcomboot
+
+			mov es,ax
+			mov di,parameter_string+1
+			mov dl,es:[parameter_laenge]
+			sub dh,dh
+			dec dx
+
+			jmp short hole_parameter_fertig
+
+hole_parameter_commandcomboot:
+
+			mov dx,00080-1
+			mov di,01000
+
+hole_parameter_fertig:
+			
+
+			mov cl,[parameter_laenge]
+			sub ch,ch
+			dec cx
+			; zu kurz um Zeichenkette zu enthalten ?
+			cmp dx,cx
+			jb ende_nicht_gefunden
+
+			; Suchbreich di..dx
+			add dx,di
+			sub dx,cx
+
+vergleich_schleife:
+
+			push cx,di
+			  mov si,parameter_string+1
+			  cld
+
+vergleich_schleife_innen:
+			  lodsb
+			  cmp al,'a'
+			  jl grossschreibung_fertig_al
+			  cmp ah,'z'
+			  ja grossschreibung_fertig_al
+			  and al,0df
+
+grossschreibung_fertig_al:
+
+			  mov ah,es:[di]
+			  inc di
+			  cmp ah,'a'
+			  jl grossschreibung_fertig_ah
+			  cmp ah,'z'
+			  and ah,0df
+
+grossschreibung_fertig_ah:
+
+			  cmp ah,al
+			  jnz innerer_vergleich_gescheitert
+
+			  loop vergleich_schleife_innen
+
+			  jmp short ende_gefunden
+
+innerer_vergleich_gescheitert:
+
+			pop di,cx
+
+                        cmp di,dx
+			jz ende_nicht_gefunden
+
+                        inc di
+
+			jmp vergleich_schleife
+
+
+;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+
+ende_fehler:
+			mov ax,04c00+fehler
+			int 021
+
+ende_gefunden:
+			mov ax,04c00+gefunden
+			int 021
+
+ende_nicht_gefunden:
+			mov ax,04c00+nicht_gefunden
+			int 021
+
+;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+titel:			db 'AUTODET * V.K. * 13.07.1997úú11.03.1998 *',00d,00a
+
+#if englisch
+			db 'determine executed program in OS/2 AUTOEXEC.BAT',00d,00a
+			db '(read doc und examples)',00d,00a
+			db '$'
+#else
+			db 'Bestimmung des aufzurufenden Programmes in der OS/2 AUTOEXEC.BAT',00d,00a
+			db '(Doku und den Beispielen lesen)',00d,00a
+			db '$'
+#endif
+;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ

@@ -1,0 +1,13 @@
+
+Determines in OS/2 AUTOEXEC.BAT
+witch program should be lauched in
+this DOS-session
+
+this gives you the chance to 
+conditionaly load VESA-drivers,
+Antivirussoftware and similar
+
+
+
+
+
